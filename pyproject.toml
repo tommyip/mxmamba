@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mxmamba"
+dynamic = ["version"]
+description = 'Mamba implementation optimized for Appile Silicon'
+readme = "README.md"
+requires-python = ">=3.8"
+license = "Apache-2.0"
+keywords = []
+authors = [
+  { name = "Thomas Ip", email = "thomas@ipthomas.com" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+  "mlx~=0.1",
+  "transformers~=4.37",
+]
+
+[project.urls]
+Documentation = "https://github.com/tommyip/mxmamba"
+Issues = "https://github.com/tommyip/mxmamba/issues"
+Source = "https://github.com/tommyip/mxmamba"
+
+[tool.hatch.version]
+path = "src/mxmamba/__about__.py"
+
+[tool.hatch.envs.default]
+dependencies = [
+  "pytest",
+  "numpy~=1.26",
+  "torch~=2.2",
+  "einops~=0.7",
+]
+[tool.hatch.envs.default.scripts]
+test = "pytest {args:tests}"
+
+[[tool.hatch.envs.all.matrix]]
+python = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+
