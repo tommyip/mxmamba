@@ -1,17 +1,20 @@
 import json
-
-import numpy as np
-import mlx.core as mx
+from functools import partial
+import pytest
 import torch
-from transformers.utils import WEIGHTS_NAME, CONFIG_NAME
+import mlx.core as mx
 from transformers.utils.hub import cached_file
+from transformers.utils import WEIGHTS_NAME, CONFIG_NAME
 
-from mxmamba.model import MambaBlock, depthwise_conv1d_weights
 from mxmamba.ref_model import (
     MambaBlock as RefMambaBlock,
     ModelArgs as RefModelArgs)
+from mxmamba.model import MambaBlock, depthwise_conv1d_weights
+from .util import to_mlx, to_torch
 
 TEST_PRETRAINED_MODEL = 'state-spaces/mamba-130m'
+
+allclose = partial(torch.allclose, rtol=1e-5, atol=1e-5)
 
 
 def load_config_hf(model_name):
@@ -66,21 +69,20 @@ config = load_config_hf(TEST_PRETRAINED_MODEL)
 state_dict = load_state_dict_hf(TEST_PRETRAINED_MODEL)
 
 
-def test_mamba_block():
+@pytest.mark.parametrize('seed', range(10))
+def test_mamba_block(seed: int):
+    torch.manual_seed(seed)
     BATCH_SIZE = 4
     SEQ_LEN = 20
 
     ref_block = init_ref_block(config, state_dict)
     block = init_block(config, state_dict)
 
-    x = mx.random.normal((BATCH_SIZE, SEQ_LEN, config['d_model']))
-    xt = torch.tensor(np.array(x, copy=False))
+    x = torch.rand((BATCH_SIZE, SEQ_LEN, config['d_model']))
 
-    y = block(x)
-    with torch.no_grad():
-        yt = ref_block(xt)
-        yt = mx.array(np.array(yt, copy=False))
+    ref_y = ref_block(x)
+    y = to_torch(block(to_mlx(x)))
 
-    breakpoint()
+    max_diff = (y - ref_y).abs().max().item()
 
-    assert mx.allclose(y, yt).item()
+    assert allclose(y, ref_y), f'Max diff = {max_diff}'
