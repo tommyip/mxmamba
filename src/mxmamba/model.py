@@ -1,7 +1,98 @@
 import math
+import json
+import pickle
 
 import mlx.core as mx
 from mlx import nn
+from transformers.utils import WEIGHTS_NAME, CONFIG_NAME
+from transformers.utils.hub import cached_file
+
+from mxmamba import weights_util
+
+
+class Mamba(nn.Module):
+    def __init__(
+        self,
+        d_model: int,
+        vocab_size: int,
+        n_layer: int,
+        d_conv: int = 4,
+        d_state: int = 16,
+        expand: int = 2,
+        pad_vocab_size_multiple: int = 8,
+    ):
+        if vocab_size % pad_vocab_size_multiple != 0:
+            vocab_size += (pad_vocab_size_multiple -
+                           vocab_size % pad_vocab_size_multiple)
+        self.embedding = nn.Embedding(vocab_size, d_model)
+        self.layers = [ResidualBlock(d_model, d_conv, d_state, expand)
+                       for _ in range(n_layer)]
+        self.norm_f = nn.RMSNorm(d_model)
+        self.lm_head = nn.Linear(d_model, vocab_size, bias=False)
+        self.lm_head.weight = self.embedding.weight
+
+    def __call__(self, input_ids) -> mx.array:
+        x = self.embedding(input_ids)
+
+        for layer in self.layers:
+            x = layer(x)
+
+        x = self.norm_f(x)
+        return self.lm_head(x)
+
+    def generate(
+        self,
+        prompt: str,
+        tokenizer,
+        n_tokens_to_gen: int = 50,
+    ) -> str:
+        input_ids = mx.array(tokenizer(prompt, return_tensors='np').input_ids)
+
+        for token in range(n_tokens_to_gen):
+            next_token_logits = self(input_ids)[:, -1]
+            probs = mx.softmax(next_token_logits, axis=-1)
+            next_indices = mx.expand_dims(mx.argmax(probs, axis=-1), axis=0)
+            input_ids = mx.concatenate([input_ids, next_indices], axis=1)
+
+        return tokenizer.decode(input_ids[0].tolist())
+
+    @staticmethod
+    def from_pretrained(hf_repo_id: str):
+        weights, config = weights_util.load_cached_weights(hf_repo_id)
+        model = Mamba(
+            d_model=config['d_model'],
+            vocab_size=config['vocab_size'],
+            n_layer=config['n_layer'],
+        )
+        weight_list = []
+        for name, weight in weights.items():
+            if name.endswith('conv1d.weight'):
+                weight = depthwise_conv1d_weights(weight)
+            weight_list.append((name, weight))
+        model.load_weights(weight_list)
+        return model
+
+
+class ResidualBlock(nn.Module):
+    def __init__(
+        self,
+        d_model: int,
+        d_conv: int = 4,
+        d_state: int = 16,
+        expand: int = 2,
+    ):
+        self.mixer = MambaBlock(d_model, d_conv, d_state, expand)
+        self.norm = nn.RMSNorm(d_model)
+
+    def __call__(self, x) -> mx.array:
+        """
+        Args:
+            x: shape (b, l, c)
+
+        Returns:
+            shape (b, l, c)
+        """
+        return self.mixer(self.norm(x)) + x
 
 
 class MambaBlock(nn.Module):
@@ -114,6 +205,11 @@ def depthwise_conv1d_weights(torch_weights) -> mx.array:
 
     Return:
         shape (d, d_conv, d)
+
+    Credit:
+        Repo: https://github.com/alxndrTL/mamba.py
+        Source: https://github.com/alxndrTL/mamba.py/blob/e1fc13f59c7780bf538568717da667236f5e1d3d/mlx/misc.py#L77-L106
+        License: MIT
     """
     d, _, d_conv = torch_weights.shape
     mlx_weights = mx.zeros((d, d_conv, d))
