@@ -42,19 +42,16 @@ class Mamba(nn.Module):
 
     def generate(
         self,
-        prompt: str,
-        tokenizer,
-        n_tokens_to_gen: int = 50,
-    ) -> str:
-        input_ids = mx.array(tokenizer(prompt, return_tensors='np').input_ids)
-
-        for token in range(n_tokens_to_gen):
-            next_token_logits = self(input_ids)[:, -1]
+        input_ids: mx.array,
+        max_length: int,
+    ) -> mx.array:
+        seq_ids = input_ids
+        for token in range(max_length - seq_ids.shape[1]):
+            next_token_logits = self(seq_ids)[:, -1]
             probs = mx.softmax(next_token_logits, axis=-1)
             next_indices = mx.expand_dims(mx.argmax(probs, axis=-1), axis=0)
-            input_ids = mx.concatenate([input_ids, next_indices], axis=1)
-
-        return tokenizer.decode(input_ids[0].tolist())
+            seq_ids = mx.concatenate([seq_ids, next_indices], axis=1)
+        return seq_ids
 
     @staticmethod
     def from_pretrained(hf_repo_id: str):
