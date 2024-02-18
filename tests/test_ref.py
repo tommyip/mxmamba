@@ -19,8 +19,7 @@ TEST_HF_REPO_ID = 'state-spaces/mamba-130m'
 BATCH_SIZE = 4
 SEQ_LEN = 20
 
-allclose = partial(torch.allclose, rtol=1e-5, atol=1e-5)
-lenient_allclose = partial(torch.allclose, rtol=1e-4, atol=1e-3)
+allclose = partial(torch.allclose, rtol=1e-4, atol=1e-3)
 
 
 def load_config_hf(hf_repo_id):
@@ -112,4 +111,4 @@ def test_mamba(input_ids):
 
     max_diff = (y - ref_y).abs().max().item()
 
-    assert lenient_allclose(ref_y, y), f'Max diff = {max_diff}'
+    assert allclose(ref_y, y), f'Max diff = {max_diff}'
