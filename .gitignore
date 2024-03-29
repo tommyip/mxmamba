@@ -4,3 +4,5 @@ __pycache__/
 .ipynb_checkpoints/
 .DS_Store
 .cache/
+
+src/mxmamba/ref_model.py

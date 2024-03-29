@@ -87,6 +87,7 @@ def test_mamba_block(seed: int):
 
     ref_y = ref_block(x)
     y = to_torch(block(to_mlx(x)))
+    # print(y)
 
     max_diff = (y - ref_y).abs().max().item()
 

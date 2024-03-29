@@ -25,8 +25,8 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  "mlx~=0.3",
-  "transformers~=4.37",
+  "mlx==0.8.0",
+  "transformers==4.37.2",
 ]
 
 [project.urls]
@@ -40,9 +40,10 @@ path = "src/mxmamba/__about__.py"
 [tool.hatch.envs.default]
 dependencies = [
   "pytest",
-  "numpy~=1.26",
-  "torch~=2.2",
-  "einops~=0.7",
+  "pytest-benchmark",
+  "numpy==1.26.4",
+  "torch==2.2.0",
+  "einops==0.7.0",
 ]
 [tool.hatch.envs.default.scripts]
 test = "pytest {args:tests}"

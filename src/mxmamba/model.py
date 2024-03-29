@@ -1,13 +1,10 @@
 import math
-import json
-import pickle
 
 import mlx.core as mx
 from mlx import nn
-from transformers.utils import WEIGHTS_NAME, CONFIG_NAME
-from transformers.utils.hub import cached_file
 
 from mxmamba import weights_util
+from mxmamba.scan import scan
 
 
 class Mamba(nn.Module):
@@ -172,22 +169,17 @@ class MambaBlock(nn.Module):
             shape (b, l, d)
         """
         b, l, d = u.shape
-        n = A.shape[1]
 
         # Discretize A and B
         # exp(einsum('bld, dn -> bldn', delta, A))
-        deltaA = mx.exp(mx.expand_dims(delta, 3) * mx.expand_dims(A, (0, 1)))
+        deltaA = mx.exp(mx.expand_dims(delta, 3) * A)
         # einsum('bld, bln, bld -> bldn', delta, B, u)
         deltaB_u = (mx.expand_dims(delta, 3) *
                     mx.expand_dims(B, 2) * mx.expand_dims(u, 3))
 
-        # Selective scan (sequential implementation)
-        x = mx.zeros((b, d, n))
-        y = mx.zeros((b, l, d))
-        for i in range(l):
-            x = deltaA[:, i] * x + deltaB_u[:, i]
-            # einsum('bdn, bn -> bd', x, C[:, i])
-            y[:, i] = (x * mx.expand_dims(C[:, i], 1)).sum(2)
+        # print((mx.expand_dims(delta, 3) * mx.expand_dims(A, (0, 1))).abs().sum())
+        # return deltaA
+        y = scan(deltaA, deltaB_u, C)
 
         return y + u * D
 

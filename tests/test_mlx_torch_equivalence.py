@@ -37,15 +37,16 @@ def test_deltaA(seed: int):
     torch.manual_seed(seed)
 
     b, l, d, n = 4, 20, 1536, 16
-    delta = torch.rand(b, l, d)
-    A = torch.rand(d, n)
+    delta = torch.randn(b, l, d)
+    A = torch.randn(d, n)
 
     torch_deltaA = torch.exp(
         einsum(delta, A, 'b l d_in, d_in n -> b l d_in n'))
-    mlx_deltaA = mx.exp(mx.expand_dims(to_mlx(delta), 3)
-                        * mx.expand_dims(to_mlx(A), (0, 1)))
+    mlx_deltaA = mx.exp(mx.expand_dims(to_mlx(delta), 3) * to_mlx(A))
 
-    assert torch.allclose(torch_deltaA, to_torch(mlx_deltaA))
+    max_diff = (torch_deltaA - to_torch(mlx_deltaA)).abs().max().item()
+    print(max_diff)
+    assert torch.allclose(torch_deltaA, to_torch(mlx_deltaA)), max_diff
 
 
 @pytest.mark.parametrize('seed', range(10))
