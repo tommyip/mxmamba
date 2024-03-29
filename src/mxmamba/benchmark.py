@@ -17,7 +17,8 @@ prompt = 'MLX is a machine learning framework developed by'
 input_ids = mx.array(tokenizer(prompt, return_tensors='np').input_ids)
 
 start = time.perf_counter()
-output_ids = model.generate(input_ids, MAX_LENGTH)
+output_ids = model.generate(input_ids, MAX_LENGTH,
+                            eos_token_id=tokenizer.eos_token_id)
 elapsed = time.perf_counter() - start
 
 n_tokens = output_ids.shape[1] - input_ids.shape[1]
